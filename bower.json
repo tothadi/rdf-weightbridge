@@ -1,0 +1,17 @@
+{
+  "name": "rdf-merleg",
+  "description": "Weight display in control room at 3BH RDF facility, Zalaegerszeg",
+  "main": "index.js",
+  "authors": [
+    "tothadi"
+  ],
+  "license": "ISC",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

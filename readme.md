@@ -12,8 +12,7 @@ The table can be switched from the current daily weights to weights of a date gi
 Angular, Node, Express, MongoDb, html, css, javascript, jquery, socket.io, net.socket, visual studio code, Angular CLI, Npm
 
 #### Link
-Running [app]
-My [introduction] page
+Running [app], and my [introduction] page
 
    [app]: <http://kozpont.zkn.hu>
    [introduction]: <https://www.tothadi.hu>

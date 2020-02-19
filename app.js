@@ -72,6 +72,7 @@ function getWeights() {
 
     if (weight !== undefined && typeof (weight) === 'number' && !isNaN(weight) && weight !== 0) {
         weightBuffer.push(weight);
+        var plate = require('./lpr');
     }
 
     if (weight < 100 && !isNaN(weight)) {
@@ -87,6 +88,8 @@ function getWeights() {
             var newWeight = new Weight();
             newWeight.weight = avgWeight;
             newWeight.date = newDate;
+            newWeight.plate = plate;
+            console.log(plate);
             newWeight.save();
 
         };

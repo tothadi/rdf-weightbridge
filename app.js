@@ -1,15 +1,20 @@
-var express = require('express');
-var path = require('path');
-var favicon = require('serve-favicon');
-var app = express();
-var server = require('http').createServer(app);
-var cors = require('cors');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
-var io = require('socket.io')(server);
-var stats = require("stats-lite");
-var dater = require('date-and-time');
-var mongoose = require('mongoose');
+require('./config/config');
+const express = require('express');
+const path = require('path');
+const favicon = require('serve-favicon');
+const app = express();
+const http = require('http');
+const fs = require('fs');
+const server = http.createServer(app);
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
+const io = require('socket.io')(server);
+const stats = require("stats-lite");
+const dater = require('date-and-time');
+const mongoose = require('mongoose');
+const observe = require('observe');
+const pic = require('./pic');
 
 require('./models/db');
 
@@ -22,9 +27,9 @@ app.use(cookieParser());
 app.use(cors());
 
 app.use(favicon(__dirname + '/client/favicon.ico'));
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(path.join(__dirname, '/client')));
 app.get('*', function (req, res) {
-    res.sendFile(path.join(__dirname, 'client/index.html'));
+    res.sendFile(path.join(__dirname, '/client/index.html'));
 });
 
 app.use(function (req, res, next) {
@@ -65,17 +70,47 @@ app.use(function (err, req, res, next) {
     });
 });
 
-function getWeights() {
 
-    var weight = require('./scale');
-    //console.log(weight);
+require('./lpr');
+require('./scale');
 
-    if (weight !== undefined && typeof (weight) === 'number' && !isNaN(weight) && weight !== 0) {
-        weightBuffer.push(weight);
-        var plate = require('./lpr');
+var plate = '';
+var direction = 0;
+var picId = '';
+var weightToSend = {
+    weight: 0
+}
+
+var observer = observe(weightToSend);
+
+module.exports.getPlates = (lpr) => {
+    if (lpr.data_type) {
+        if (lpr.data_type.toString() === 'alpr_group' && lpr.matches_template) {
+            if (plate.length === 0) {
+                try {
+                    plate = lpr.best_plate_number;
+                    direction = lpr.travel_direction;
+                    picId = lpr.best_uuid;
+                } catch (err) {
+                    console.log(err.message);
+                }
+            }
+            console.log(plate + ', ' + direction + ', ' + picId);
+        }
+    }
+}
+
+module.exports.getWeights = (weight) => {
+
+    if (weight != weightToSend.weight) {
+        observer.set('weight', weight);
     }
 
-    if (weight < 100 && !isNaN(weight)) {
+    if (weight !== undefined && typeof (weight) === 'number' && !isNaN(weight) && weight > 200) {
+        weightBuffer.push(weight);
+    }
+
+    if (weight < 200 && !isNaN(weight)) {
 
         var avgWeight = stats.mode(weightBuffer);
         var now = new Date();
@@ -88,21 +123,52 @@ function getWeights() {
             var newWeight = new Weight();
             newWeight.weight = avgWeight;
             newWeight.date = newDate;
-            newWeight.plate = plate;
-            console.log(plate);
-            newWeight.save();
+            if (plate === '') {
+                newWeight.plate = 'NA';
+            } else {
+                newWeight.plate = plate;
+            }
+            if (direction === 0) {
+                direction = 'NA';
+                newWeight.direction = direction;
+            } else if (direction > 0 && direction < 180) {
+                direction = 'ki';
+                newWeight.direction = direction;
+            } else {
+                direction = 'be';
+                newWeight.direction = direction;
+            }
+            newWeight.save(function (err, product) {
+                if (err) {
+                    console.log(err);
+                }
+                console.log(product + ' saved to db!');
+
+                var link = process.env.PIC_URI + picId;
+                var savePath = process.env.SAVE_PATH + dater.format(now, 'YYYY-MM-DD') + '/';
+                var fileName = dater.format(now, 'HH_mm_ss') + '_' + plate + '_' + direction + '.jpg';
+                var filePath = savePath + fileName;
+                if (!fs.existsSync(savePath)) {
+                    fs.mkdirSync(savePath);
+                }
+
+                if (plate.length === 6) {
+                    pic.download(link, filePath, function () {
+                        console.log('Image saved');
+                    });
+                }
+            });
 
         };
+        setTimeout(() => {
+            plate = '';
+            direction = 0;
+            picId = '';
+        }, 500);
 
     };
 
 };
-
-setInterval(function () {
-
-    getWeights();
-
-}, 3000);
 
 io.on('connection', function (client) {
 
@@ -114,20 +180,13 @@ io.on('connection', function (client) {
 
     client.on('join', function () {
 
-        console.log('client on');
-
-        setInterval(function () {
-
-            var weight = require('./scale');
-            //console.log(weight);
-
-            if (!isNaN(weight)) {
-                client.emit('weight', weight);
+        observer.on('change', (change) => {
+            if (change.property[0] === 'weight') {
+                client.emit('weight', observer.subject.weight);
+                client.emit('plate', plate);
+                tableUpdate();
             }
-
-            tableUpdate();
-
-        }, 3000);
+        });
 
         function tableUpdate() {
             Weight.find({}, {
@@ -161,6 +220,8 @@ io.on('connection', function (client) {
             });
         };
 
+        tableUpdate();
+
     });
 
     client.on('dateinput', function (data) {
@@ -173,6 +234,9 @@ io.on('connection', function (client) {
                 var filterWeights = [];
                 weights.forEach(function (value) {
                     var dbDate = dater.preparse(value.date, 'YYYY.MM.DD HH:mm:ss');
+                    if (!data) {
+                        data = dater.format(new Date, 'YYYY.MM.DD');
+                    }
                     var filterDate = dater.preparse(data, 'YYYY.MM.DD HH:mm:ss');
                     if (dbDate.Y === filterDate.Y && dbDate.M === filterDate.M && dbDate.D === filterDate.D) {
                         filterWeights.push(value);
@@ -199,4 +263,4 @@ io.on('connection', function (client) {
 
 });
 
-server.listen(8080, 'localhost'); //Localhost for test purposes
+server.listen(process.env.port, process.env.serverIP); //Localhost for test purposes

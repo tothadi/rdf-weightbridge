@@ -1,9 +1,10 @@
-var bs = require('nodestalker'),
-    tube = 'alprd';
+const bs = require('nodestalker'),
+      tube = 'alprd',
+      app = require('./app');
 
 function processJob(job, callback) {
     // doing something really expensive
-    console.log('processing...');
+    //console.log('processing...');
     setTimeout(function () {
         callback();
     }, 1000);
@@ -17,14 +18,14 @@ function errorEventHandler(err) {
 }
 
 function resJob() {
-    var client = bs.Client('127.0.0.1:11300');
+    var client = bs.Client(process.env.QUEUE_URI);
 
     client.on('error', errorEventHandler);
 
     client.watch(tube).onSuccess(function (data) {
         //console.log(data)
         client.reserve().onSuccess(function (job) {
-            console.log('received job:', job);
+            //console.log('received job:', job);
             resJob();
 
             processJob(job, function () {
@@ -32,11 +33,8 @@ function resJob() {
                     //console.log('deleted', job);
                     //console.log(del_msg);
                     client.disconnect();
+                    app.getPlates(JSON.parse(job.data));
                 });
-                var vehicle = JSON.parse(job.data)
-                if (vehicle.data_type == 'alpr_group') {
-                   module.exports = vehicle.candidates[0].plate;
-                }
             });
         });
     });

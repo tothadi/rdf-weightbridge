@@ -1,7 +1,8 @@
+require('../config/config')
 var mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
 var gracefulShutdown;
-var dbURI = "mongodb url";
+var dbURI = process.env.MONGODB_URI
 
 mongoose.set('useCreateIndex', true);
 

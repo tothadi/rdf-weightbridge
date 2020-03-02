@@ -1,11 +1,12 @@
 require('events').defaultMaxListeners = 20;
-var net = require('net');
-var port = 4147;
-var host = '185.205.250.127';
-var timeout = 3000;
-var socket = new net.Socket();
+const app = require('./app');
+const net = require('net');
+const port = 4147;
+const host = '185.205.250.127';
+const timeout = 3000;
+const socket = new net.Socket();
 socket.setEncoding('utf8');
-var stats = require("stats-lite");
+const stats = require("stats-lite");
 let weightBuffer = [];
 
 function makeConnection() {
@@ -26,7 +27,8 @@ function connectEventHandler() {
     }, 1000);
 }
 function endEventHandler() {
-    console.log('end');
+    return    
+    //console.log('end');
 }
 function timeoutEventHandler() {
     console.log('timeout');
@@ -35,7 +37,8 @@ function errorEventHandler(err) {
     console.log(`error: ${err.message}`);
 }
 function closeEventHandler() {
-    console.log('closed');
+    return
+    //console.log('closed');
 }
 function onReadable() {
     let chunk;
@@ -63,7 +66,7 @@ function gw() {
     //console.log(weightBuffer);
     weightBuffer.length = 0;
     //console.log(avgWeight);
-    module.exports = avgWeight;
+    app.getWeights(avgWeight);
 }
 
 setInterval(makeConnection, timeout);

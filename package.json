@@ -326,7 +326,7 @@
       "resolved": "https://registry.npmjs.org/expand-template/-/expand-template-2.0.3.tgz",
       "version": "2.0.3"
     },
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "file-uri-to-path": "2.0.0",
     "finalhandler": {
       "integrity": "sha512-aAWcW57uxVNrQZqFXjITpW3sIUQmHGG3qSb9mUah9MgMC4NeWhNOlNjXEYq3HjRAvL6arUviZGGJsBg6z0zsWA==",
